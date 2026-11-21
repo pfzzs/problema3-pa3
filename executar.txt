@@ -1,0 +1,3 @@
+# executar.txt - versao alternativa na linha 2, versao final na linha 3
+python alternativa/main.py <arquivo-entrada>
+python final/main.py <arquivo-entrada>
