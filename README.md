@@ -26,7 +26,7 @@ medicoes/
   medicoes.csv <- medições (separado por ponto e vírgula)
 ```
 
-`executar.txt`: primeira linha = versão alternativa; segunda linha = versão final; terceira linha = versão final. Cada linha contém o comando de execução da respectiva versão. O histórico de commits faz parte da entrega, e cada integrante faz commits com o próprio usuário.
+`executar.txt`: primeira linha = comentário; segunda linha = versão alternativa; terceira linha = versão final. Cada linha contém o comando de execução da respectiva versão. O histórico de commits faz parte da entrega, e cada integrante faz commits com o próprio usuário.
 
 ## Contrato de operações (entrada/saída)
 
