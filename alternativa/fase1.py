@@ -108,4 +108,35 @@ def sort_pairs(arr):
             a[min_idx] = tmp
     return a
 
+# [R3] Cadastro de pontos (PONTO): cadastra ponto e preserva tipo UBS do primeiro cadastro
+def op_ponto(parts, point_codes, point_is_ubs, out):
+    code = parts[1]
+    is_ubs = len(parts) >= 3 and parts[2] == "UBS"
+    if find_point(point_codes, code) != -1:
+        out.append("DUPLICADO")
+    else:
+        point_codes.append(code)
+        point_is_ubs.append(is_ubs)
+        out.append("OK")
+
+
+# [R4] Cadastro de trechos (TRECHO): valida NAOEXISTE -> INVALIDO -> DUPLICADO e registra bidirecional
+def op_trecho(parts, point_codes, edges_u, edges_v, edges_w, flooded, out):
+    a_code, b_code = parts[1], parts[2]
+    mins = int(parts[3])
+    ai = find_point(point_codes, a_code)
+    bi = find_point(point_codes, b_code)
+    if ai == -1 or bi == -1:
+        out.append("NAOEXISTE")
+    elif a_code == b_code or mins <= 0:
+        out.append("INVALIDO")
+    elif find_edge(edges_u, edges_v, ai, bi) != -1:
+        out.append("DUPLICADO")
+    else:
+        edges_u.append(ai)
+        edges_v.append(bi)
+        edges_w.append(mins)
+        flooded.append(False)
+        out.append("OK")
+
 
