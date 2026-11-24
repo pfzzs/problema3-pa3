@@ -139,4 +139,179 @@ def op_trecho(parts, point_codes, edges_u, edges_v, edges_w, flooded, out):
         flooded.append(False)
         out.append("OK")
 
+# [R5] Controle de alagamento (ALAGA e LIBERA): altera estado sem remover trecho do mapa
+def op_alaga_libera(cmd, parts, point_codes, edges_u, edges_v, flooded, out):
+    a_code, b_code = parts[1], parts[2]
+    ai = find_point(point_codes, a_code)
+    bi = find_point(point_codes, b_code)
+    ei = find_edge(edges_u, edges_v, ai, bi) if ai != -1 and bi != -1 else -1
+    if ei == -1:
+        out.append("NAOEXISTE")
+    elif cmd == "ALAGA":
+        if flooded[ei]:
+            out.append("JA")
+        else:
+            flooded[ei] = True
+            out.append("OK")
+    else:  # LIBERA
+        if not flooded[ei]:
+            out.append("JA")
+        else:
+            flooded[ei] = False
+            out.append("OK")
+
+
+# [R6] Consultas de caminho (PASSOS, TEMPO e ROTA) sobre trechos nao alagados
+def op_caminho(cmd, parts, point_codes, edges_u, edges_v, edges_w, flooded, inf_val, out):
+    a_code, b_code = parts[1], parts[2]
+    ai = find_point(point_codes, a_code)
+    bi = find_point(point_codes, b_code)
+    if ai == -1 or bi == -1:
+        out.append("NAOEXISTE")
+        return
+    if ai == bi:
+        if cmd == "ROTA":
+            out.append("0 " + a_code)
+        else:
+            out.append("0")
+        return
+
+    n = len(point_codes)
+    m = len(edges_u)
+
+    if cmd == "PASSOS":
+        dist = [-1] * n
+        q = [ai]
+        dist[ai] = 0
+        head = 0
+        while head < len(q):
+            u = q[head]
+            head += 1
+            if u == bi:
+                break
+            for ei in range(m):
+                if flooded[ei]:
+                    continue
+                u2 = edges_u[ei]
+                v2 = edges_v[ei]
+                if u2 == u and dist[v2] == -1:
+                    dist[v2] = dist[u] + 1
+                    q.append(v2)
+                elif v2 == u and dist[u2] == -1:
+                    dist[u2] = dist[u] + 1
+                    q.append(u2)
+        if dist[bi] == -1:
+            out.append("SEMCAMINHO")
+        else:
+            out.append(str(dist[bi]))
+
+    else:  # TEMPO ou ROTA (Dijkstra manual)
+        dist = [inf_val] * n
+        prev = [-1] * n
+        visited = [False] * n
+        dist[ai] = 0
+
+        for _ in range(n):
+            u = -1
+            best_d = inf_val
+            for i in range(n):
+                if not visited[i] and dist[i] < best_d:
+                    best_d = dist[i]
+                    u = i
+            if u == -1 or u == bi:
+                break
+            visited[u] = True
+
+            for ei in range(m):
+                if flooded[ei]:
+                    continue
+                u2 = edges_u[ei]
+                v2 = edges_v[ei]
+                w = edges_w[ei]
+                v = -1
+                if u2 == u:
+                    v = v2
+                elif v2 == u:
+                    v = u2
+                if v != -1 and not visited[v]:
+                    nd = dist[u] + w
+                    if nd < dist[v]:
+                        dist[v] = nd
+                        prev[v] = u
+
+        if dist[bi] == inf_val:
+            out.append("SEMCAMINHO")
+        elif cmd == "TEMPO":
+            out.append(str(dist[bi]))
+        else:
+            path = []
+            cur = bi
+            while cur != -1:
+                path.append(point_codes[cur])
+                cur = prev[cur]
+            path.reverse()
+            out.append(str(dist[bi]) + " " + " ".join(path))
+
+
+# [R7] Busca da UBS mais proxima (UBSPROX): menor tempo e desempate por menor codigo
+def op_ubsprox(parts, point_codes, point_is_ubs, edges_u, edges_v, edges_w, flooded, inf_val, out):
+    a_code = parts[1]
+    ai = find_point(point_codes, a_code)
+    if ai == -1:
+        out.append("NAOEXISTE")
+        return
+    if point_is_ubs[ai]:
+        out.append(a_code + " 0")
+        return
+
+    n = len(point_codes)
+    m = len(edges_u)
+    dist = [inf_val] * n
+    visited = [False] * n
+    dist[ai] = 0
+
+    for _ in range(n):
+        u = -1
+        best_d = inf_val
+        for i in range(n):
+            if not visited[i] and dist[i] < best_d:
+                best_d = dist[i]
+                u = i
+        if u == -1:
+            break
+        visited[u] = True
+
+        for ei in range(m):
+            if flooded[ei]:
+                continue
+            u2 = edges_u[ei]
+            v2 = edges_v[ei]
+            w = edges_w[ei]
+            v = -1
+            if u2 == u:
+                v = v2
+            elif v2 == u:
+                v = u2
+            if v != -1 and not visited[v]:
+                nd = dist[u] + w
+                if nd < dist[v]:
+                    dist[v] = nd
+
+    best_idx = -1
+    for i in range(n):
+        if point_is_ubs[i] and dist[i] < inf_val:
+            if (
+                best_idx == -1
+                or dist[i] < dist[best_idx]
+                or (
+                    dist[i] == dist[best_idx]
+                    and point_codes[i] < point_codes[best_idx]
+                )
+            ):
+                best_idx = i
+
+    if best_idx == -1:
+        out.append("NENHUMA")
+    else:
+        out.append(point_codes[best_idx] + " " + str(dist[best_idx]))
 
