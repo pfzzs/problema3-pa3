@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # Versao ALTERNATIVA (descartada) - Problema 3.
+# Representacao por listas paralelas (vetores simples) sem estruturas prontas no nucleo.
+# Recalcula buscas e ordena manualmente a cada consulta (lenta em cargas grandes).
 import sys
 import time
 
@@ -108,6 +110,7 @@ def sort_pairs(arr):
             a[min_idx] = tmp
     return a
 
+
 # [R3] Cadastro de pontos (PONTO): cadastra ponto e preserva tipo UBS do primeiro cadastro
 def op_ponto(parts, point_codes, point_is_ubs, out):
     code = parts[1]
@@ -138,6 +141,7 @@ def op_trecho(parts, point_codes, edges_u, edges_v, edges_w, flooded, out):
         edges_w.append(mins)
         flooded.append(False)
         out.append("OK")
+
 
 # [R5] Controle de alagamento (ALAGA e LIBERA): altera estado sem remover trecho do mapa
 def op_alaga_libera(cmd, parts, point_codes, edges_u, edges_v, flooded, out):
@@ -315,3 +319,93 @@ def op_ubsprox(parts, point_codes, point_is_ubs, edges_u, edges_v, edges_w, floo
     else:
         out.append(point_codes[best_idx] + " " + str(dist[best_idx]))
 
+
+# [R8] Identificacao de pontos isolados (ISOLADOS): sem caminho ate nenhuma UBS
+def op_isolados(point_codes, point_is_ubs, edges_u, edges_v, flooded, out):
+    n = len(point_codes)
+    m = len(edges_u)
+    reached = [False] * n
+    q = []
+    for i in range(n):
+        if point_is_ubs[i]:
+            reached[i] = True
+            q.append(i)
+
+    head = 0
+    while head < len(q):
+        u = q[head]
+        head += 1
+        for ei in range(m):
+            if flooded[ei]:
+                continue
+            u2 = edges_u[ei]
+            v2 = edges_v[ei]
+            if u2 == u and not reached[v2]:
+                reached[v2] = True
+                q.append(v2)
+            elif v2 == u and not reached[u2]:
+                reached[u2] = True
+                q.append(u2)
+
+    isolated_codes = []
+    for i in range(n):
+        if not reached[i]:
+            isolated_codes.append(point_codes[i])
+    isolated_codes = sort_strings(isolated_codes)
+
+    out.append(str(len(isolated_codes)))
+    for c in isolated_codes:
+        out.append(c)
+
+
+# [R9] Trechos criticos (CRITICOS - opcional): pontes no subgrafo nao alagado
+def op_criticos(point_codes, edges_u, edges_v, flooded, out):
+    n = len(point_codes)
+    m = len(edges_u)
+    adj = [[] for _ in range(n)]
+    for ei in range(m):
+        if flooded[ei]:
+            continue
+        u = edges_u[ei]
+        v = edges_v[ei]
+        adj[u].append(v)
+        adj[v].append(u)
+
+    disc = [-1] * n
+    low = [0] * n
+    visited = [False] * n
+    bridges = []
+    timer = [0]
+
+    def dfs(u, parent):
+        visited[u] = True
+        disc[u] = timer[0]
+        low[u] = timer[0]
+        timer[0] += 1
+        for v in adj[u]:
+            if not visited[v]:
+                dfs(v, u)
+                if low[v] < low[u]:
+                    low[u] = low[v]
+                if low[v] > disc[u]:
+                    ca = point_codes[u]
+                    cb = point_codes[v]
+                    if cb < ca:
+                        ca, cb = cb, ca
+                    bridges.append((ca, cb))
+            elif v != parent:
+                if disc[v] < low[u]:
+                    low[u] = disc[v]
+
+    for i in range(n):
+        if not visited[i]:
+            dfs(i, -1)
+
+    pairs = sort_pairs(bridges)
+    out.append(str(len(pairs)))
+    for a, b in pairs:
+        out.append(a + " " + b)
+
+
+if __name__ == "__main__":
+    main()
