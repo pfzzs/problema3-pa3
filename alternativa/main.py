@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Versao ALTERNATIVA (descartada) - Problema 3.
 # Representacao por listas paralelas (vetores simples) sem estruturas prontas no nucleo.
-# Recalcula buscas e ordena manualmente a cada consulta (lenta em cargas grandes).
+# Usa Bellman-Ford para caminhos ponderados (TEMPO, ROTA e UBSPROX).
 import sys
 import time
 
@@ -111,6 +111,40 @@ def sort_pairs(arr):
     return a
 
 
+# Auxiliar Bellman-Ford sobre arestas nao alagadas (grafo nao direcionado)
+def bellman_ford(src, n, edges_u, edges_v, edges_w, flooded, inf_val, keep_prev=False):
+    m = len(edges_u)
+    dist = [inf_val] * n
+    prev = [-1] * n if keep_prev else None
+    dist[src] = 0
+
+    for _ in range(n - 1):
+        changed = False
+        for ei in range(m):
+            if flooded[ei]:
+                continue
+            u = edges_u[ei]
+            v = edges_v[ei]
+            w = edges_w[ei]
+
+            if dist[u] < inf_val and dist[u] + w < dist[v]:
+                dist[v] = dist[u] + w
+                if keep_prev:
+                    prev[v] = u
+                changed = True
+
+            if dist[v] < inf_val and dist[v] + w < dist[u]:
+                dist[u] = dist[v] + w
+                if keep_prev:
+                    prev[u] = v
+                changed = True
+
+        if not changed:
+            break
+
+    return dist, prev
+
+
 # [R3] Cadastro de pontos (PONTO): cadastra ponto e preserva tipo UBS do primeiro cadastro
 def op_ponto(parts, point_codes, point_is_ubs, out):
     code = parts[1]
@@ -209,40 +243,10 @@ def op_caminho(cmd, parts, point_codes, edges_u, edges_v, edges_w, flooded, inf_
         else:
             out.append(str(dist[bi]))
 
-    else:  # TEMPO ou ROTA (Dijkstra manual)
-        dist = [inf_val] * n
-        prev = [-1] * n
-        visited = [False] * n
-        dist[ai] = 0
-
-        for _ in range(n):
-            u = -1
-            best_d = inf_val
-            for i in range(n):
-                if not visited[i] and dist[i] < best_d:
-                    best_d = dist[i]
-                    u = i
-            if u == -1 or u == bi:
-                break
-            visited[u] = True
-
-            for ei in range(m):
-                if flooded[ei]:
-                    continue
-                u2 = edges_u[ei]
-                v2 = edges_v[ei]
-                w = edges_w[ei]
-                v = -1
-                if u2 == u:
-                    v = v2
-                elif v2 == u:
-                    v = u2
-                if v != -1 and not visited[v]:
-                    nd = dist[u] + w
-                    if nd < dist[v]:
-                        dist[v] = nd
-                        prev[v] = u
-
+    else:  # TEMPO ou ROTA (Bellman-Ford)
+        dist, prev = bellman_ford(
+            ai, n, edges_u, edges_v, edges_w, flooded, inf_val, keep_prev=(cmd == "ROTA")
+        )
         if dist[bi] == inf_val:
             out.append("SEMCAMINHO")
         elif cmd == "TEMPO":
@@ -269,37 +273,7 @@ def op_ubsprox(parts, point_codes, point_is_ubs, edges_u, edges_v, edges_w, floo
         return
 
     n = len(point_codes)
-    m = len(edges_u)
-    dist = [inf_val] * n
-    visited = [False] * n
-    dist[ai] = 0
-
-    for _ in range(n):
-        u = -1
-        best_d = inf_val
-        for i in range(n):
-            if not visited[i] and dist[i] < best_d:
-                best_d = dist[i]
-                u = i
-        if u == -1:
-            break
-        visited[u] = True
-
-        for ei in range(m):
-            if flooded[ei]:
-                continue
-            u2 = edges_u[ei]
-            v2 = edges_v[ei]
-            w = edges_w[ei]
-            v = -1
-            if u2 == u:
-                v = v2
-            elif v2 == u:
-                v = u2
-            if v != -1 and not visited[v]:
-                nd = dist[u] + w
-                if nd < dist[v]:
-                    dist[v] = nd
+    dist, _ = bellman_ford(ai, n, edges_u, edges_v, edges_w, flooded, inf_val, keep_prev=False)
 
     best_idx = -1
     for i in range(n):
